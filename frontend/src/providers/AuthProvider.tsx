@@ -20,6 +20,36 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { initSocket, disconnectSocket } = useChatStore();
 
   useEffect(() => {
+    // Install a response interceptor once to transparently refresh tokens
+    // on 401 responses (e.g. when Clerk rotates the session token).
+    const interceptorId = axiosInstance.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest: any = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            const newToken = await getToken();
+            updateApiToken(newToken);
+
+            if (newToken) {
+              originalRequest.headers = {
+                ...(originalRequest.headers || {}),
+                Authorization: `Bearer ${newToken}`,
+              };
+              return axiosInstance(originalRequest);
+            }
+          } catch (tokenError) {
+            // eslint-disable-next-line no-console
+            console.error("Error refreshing token after 401:", tokenError);
+          }
+        }
+
+        return Promise.reject(error);
+      }
+    );
+
     const initialAuth = async () => {
       try {
         const token = await getToken();
@@ -41,6 +71,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initialAuth();
     //return cleanup function
     return () => {
+      axiosInstance.interceptors.response.eject(interceptorId);
       disconnectSocket();
     };
   }, [getToken, userId, checkAdminStatus, initSocket, disconnectSocket]);

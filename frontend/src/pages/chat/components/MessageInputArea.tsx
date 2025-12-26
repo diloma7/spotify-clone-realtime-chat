@@ -3,17 +3,21 @@ import { Input } from "@/components/ui/input";
 import { useChatStore } from "@/stores/useChatStore";
 import { useUser } from "@clerk/clerk-react";
 import { Send } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const MessageInputArea = () => {
   const [newMessage, setNewMessage] = useState("");
   const { user } = useUser();
-  const { selectedUser, sendMessage } = useChatStore();
+  const { selectedUser, sendMessage, updateActivity } = useChatStore();
+  const typingTimeoutRef = useRef<number | null>(null);
 
   const handleSend = () => {
     if (!selectedUser || !user || !newMessage) return;
     sendMessage(selectedUser.clerkId, user.id, newMessage.trim());
     setNewMessage("");
+
+    // Reset typing state to Idle after sending a message
+    updateActivity(user.id, "Idle", selectedUser?.clerkId);
   };
 
   return (
@@ -22,7 +26,27 @@ const MessageInputArea = () => {
         <Input
           placeholder="Type a message..."
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setNewMessage(value);
+
+            if (!user) return;
+
+            // Mark as typing while there is content and debounce
+            // resetting back to Idle to avoid spamming the server.
+            if (typingTimeoutRef.current) {
+              window.clearTimeout(typingTimeoutRef.current);
+            }
+
+            if (value.trim().length > 0) {
+              updateActivity(user.id, "typing...", selectedUser?.clerkId);
+              typingTimeoutRef.current = window.setTimeout(() => {
+                updateActivity(user.id, "Idle", selectedUser?.clerkId);
+              }, 1500);
+            } else {
+              updateActivity(user.id, "Idle", selectedUser?.clerkId);
+            }
+          }}
           className="bg-zinc-800 border-none"
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />

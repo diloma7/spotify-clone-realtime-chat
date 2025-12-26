@@ -11,6 +11,7 @@ interface ChatStore {
   isConnected: boolean;
   onlineUsers: Set<string>;
   userActivities: Map<string, string>;
+  lastPlayingActivity: Map<string, string>;
   messages: Message[];
   selectedUser: User | null;
 
@@ -20,10 +21,22 @@ interface ChatStore {
   sendMessage: (receiverId: string, senderId: string, content: string) => void;
   fetchMessages: (userId: string) => Promise<void>;
   setSelectedUser: (user: User | null) => void;
+  selectUser: (user: User) => Promise<void>;
+  updateActivity: (
+    userId: string,
+    activity: string,
+    targetUserId?: string
+  ) => void;
 }
 
-const baseURL =
-  import.meta.env.MODE === "development" ? "http://localhost:5006" : "/";
+const baseURL = (() => {
+  const configuredBase = (import.meta.env.VITE_API_URL as string | undefined)
+    ?.trim()
+    .replace(/\/$/, "");
+
+  // Default to the nginx entrypoint when running locally.
+  return configuredBase || "http://localhost:8080";
+})();
 
 const socket = io(baseURL, {
   autoConnect: false, // only connect if user is authenticated
@@ -38,10 +51,82 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isConnected: false,
   onlineUsers: new Set(),
   userActivities: new Map(),
+  lastPlayingActivity: new Map(),
   messages: [],
   selectedUser: null,
 
   setSelectedUser: (user) => set({ selectedUser: user }),
+  selectUser: async (user) => {
+    set({ selectedUser: user, messages: [] });
+    await get().fetchMessages(user.clerkId);
+  },
+
+  updateActivity: (userId: string, activity: string, targetUserId?: string) => {
+    const socket = get().socket;
+    if (!socket) return;
+    const current = get().userActivities.get(userId) ?? "";
+    const lastPlaying = get().lastPlayingActivity.get(userId) ?? "";
+
+    let finalActivity = activity;
+
+    // Track the latest playing state so typing/idle events don't lose it.
+    if (activity.startsWith("Playing ")) {
+      finalActivity = activity;
+    }
+
+    if (activity === "typing...") {
+      const basePlaying = current.startsWith("Playing ")
+        ? current.replace(" | typing...", "")
+        : lastPlaying;
+
+      if (basePlaying) {
+        finalActivity = `${basePlaying} | typing...`;
+      } else if (current.includes("| typing...")) {
+        finalActivity = current;
+      } else {
+        finalActivity = "typing...";
+      }
+
+      if (targetUserId) {
+        if (!finalActivity.includes(`to:${targetUserId}`)) {
+          finalActivity = `${finalActivity} | to:${targetUserId}`;
+        }
+      }
+    }
+
+    if (activity === "Idle") {
+      const basePlaying = current.startsWith("Playing ")
+        ? current.replace(" | typing...", "")
+        : lastPlaying;
+      if (basePlaying) {
+        finalActivity = basePlaying;
+      } else if (current.includes("| typing...")) {
+        finalActivity = current.replace(" | typing...", "");
+      } else {
+        finalActivity = "Idle";
+      }
+    }
+
+    // Remove any lingering target markers when not actively typing
+    if (activity === "Idle" || activity.startsWith("Playing ")) {
+      finalActivity = finalActivity.replace(/ \| to:[^|]+/g, "");
+    }
+
+    socket.emit("update_activity", { userId, activity: finalActivity });
+
+    set((state) => {
+      const newActivities = new Map(state.userActivities);
+      newActivities.set(userId, finalActivity);
+      const newLastPlaying = new Map(state.lastPlayingActivity);
+      if (finalActivity.startsWith("Playing ")) {
+        newLastPlaying.set(userId, finalActivity.replace(" | typing...", ""));
+      }
+      return {
+        userActivities: newActivities,
+        lastPlayingActivity: newLastPlaying,
+      };
+    });
+  },
 
   fetchUsers: async () => {
     set({ isLoading: true, error: null });
@@ -63,14 +148,32 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       socket.auth = { userId };
       socket.connect();
 
-      socket.emit("user_connected", userId);
+      // Ensure presence is registered on every (re)connect, not just
+      // the initial connection. Socket.IO fires `connect` again after
+      // automatic reconnects, so this keeps the online user list
+      // accurate without requiring a full page refresh.
+      socket.on("connect", () => {
+        socket.emit("user_connected", userId);
+      });
 
       socket.on("users_online", (users: string[]) => {
         set({ onlineUsers: new Set(users) });
       });
 
       socket.on("activities", (activities: [string, string][]) => {
-        set({ userActivities: new Map(activities) });
+        set((state) => {
+          const newActivities = new Map(activities);
+          const newLastPlaying = new Map(state.lastPlayingActivity);
+          newActivities.forEach((activity, userId) => {
+            if (activity.startsWith("Playing ")) {
+              newLastPlaying.set(userId, activity.replace(" | typing...", ""));
+            }
+          });
+          return {
+            userActivities: newActivities,
+            lastPlayingActivity: newLastPlaying,
+          };
+        });
       });
 
       socket.on("user_connected", (userId: string) => {
@@ -105,7 +208,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           set((state) => {
             const newActivities = new Map(state.userActivities);
             newActivities.set(userId, activity);
-            return { userActivities: newActivities };
+            const newLastPlaying = new Map(state.lastPlayingActivity);
+            if (activity.startsWith("Playing ")) {
+              newLastPlaying.set(userId, activity.replace(" | typing...", ""));
+            }
+            return {
+              userActivities: newActivities,
+              lastPlayingActivity: newLastPlaying,
+            };
           });
         }
       );

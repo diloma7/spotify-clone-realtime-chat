@@ -2,10 +2,18 @@ import UsersListSkeleton from "@/components/skeletons/UsersListSkeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatStore } from "@/stores/useChatStore";
+import { useUser } from "@clerk/clerk-react";
 
 const UsersList = () => {
-  const { users, selectedUser, setSelectedUser, isLoading, onlineUsers } =
-    useChatStore();
+  const {
+    users,
+    selectedUser,
+    selectUser,
+    isLoading,
+    onlineUsers,
+    userActivities,
+  } = useChatStore();
+  const { user: authUser } = useUser();
 
   return (
     <div className="border-r border-zinc-800">
@@ -18,7 +26,7 @@ const UsersList = () => {
               users.map((user) => (
                 <div
                   key={user._id}
-                  onClick={() => setSelectedUser(user)}
+                  onClick={() => selectUser(user)}
                   className={`flex items-center justify-center lg:justify-start gap-3 p-3 
                         rounded-lg cursor-pointer transition-colors hover:bg-zinc-800 
                         ${
@@ -46,6 +54,15 @@ const UsersList = () => {
                     <span className="font-medium truncate">
                       {user.fullName}
                     </span>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {authUser &&
+                      userActivities.get(user.clerkId)?.includes("typing...") &&
+                      userActivities.get(user.clerkId)
+                        ? "Typing..."
+                        : onlineUsers.has(user.clerkId)
+                        ? "Online"
+                        : "Offline"}
+                    </p>
                   </div>
                 </div>
               ))

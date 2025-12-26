@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 const AudioPlayer = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const prevSongRef = useRef<string | null>(null);
-  const { currentSong, playNext, isPlaying } = usePlayerStore();
+  const { currentSong, playNext, isPlaying, isRepeat } = usePlayerStore();
 
   //handdle play/pause
   useEffect(() => {
@@ -19,14 +19,21 @@ const AudioPlayer = () => {
   useEffect(() => {
     const audio = audioRef.current;
     const handleEnded = () => {
-      playNext();
+      if (!audio) return;
+
+      if (isRepeat) {
+        audio.currentTime = 0;
+        audio.play();
+      } else {
+        playNext();
+      }
     };
     // attach event listener
     audio?.addEventListener("ended", handleEnded);
 
     //cleanup
     return () => audio?.removeEventListener("ended", handleEnded);
-  }, [playNext]);
+  }, [playNext, isRepeat]);
 
   //handle song change
   useEffect(() => {

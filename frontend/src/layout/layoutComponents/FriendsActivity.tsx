@@ -28,7 +28,8 @@ const FriendsActivity = () => {
         <div className="p-4 space-y-4">
           {users.map((user) => {
             const activity = userActivities.get(user.clerkId);
-            const isPlaying = activity && activity !== "Idle";
+            const isPlaying = !!activity && activity.startsWith("Playing ");
+            const isTyping = !!activity && activity.includes("typing...");
 
             return (
               <div
@@ -62,11 +63,26 @@ const FriendsActivity = () => {
                     {isPlaying ? (
                       <div className="mt-1">
                         <div className="mt-1 text-sm text-white font-medium truncate">
-                          {activity.replace("Playing ", "").split(" by ")[0]}
+                          {
+                            activity
+                              .replace(/ \| typing\.\.\./g, "")
+                              .replace(/ \| to:[^|]+/g, "")
+                              .replace("Playing ", "")
+                              .split(" by ")[0]
+                          }
                         </div>
                         <div className="text-xs text-zinc-400 truncate">
-                          {activity.split(" by ")[1]}
+                          {
+                            activity
+                              .replace(/ \| typing\.\.\./g, "")
+                              .replace(/ \| to:[^|]+/g, "")
+                              .split(" by ")[1]
+                          }
                         </div>
+                      </div>
+                    ) : isTyping ? (
+                      <div className="mt-1 text-xs text-zinc-400">
+                        Typing...
                       </div>
                     ) : (
                       <div className="mt-1 text-xs text-zinc-400">Idle</div>

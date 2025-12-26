@@ -11,8 +11,6 @@ type SectionGridProps = {
 };
 
 const SectionGrid = ({ title, songs, isLoading }: SectionGridProps) => {
-  console.log("Songs:", songs);
-
   if (isLoading) return <SectionGridSkeleton />;
   return (
     <div className="mb-8">

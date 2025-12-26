@@ -49,6 +49,16 @@ export const useMusicStore = create<MusicStore>((set) => ({
       set((state) => ({
         songs: state.songs.filter((song) => song._id !== id),
       }));
+
+      // Refresh global stats after a successful mutation so the
+      // dashboard reflects the latest totals without a full reload.
+      try {
+        const statsResponse = await axiosInstance.get("/stats");
+        set({ stats: statsResponse.data });
+      } catch (statsError: any) {
+        console.error("Error refreshing stats after song delete", statsError);
+      }
+
       toast.success("Song deleted successfully");
     } catch (error: any) {
       console.log("Error in deleteSong", error);
@@ -70,6 +80,15 @@ export const useMusicStore = create<MusicStore>((set) => ({
             : song
         ),
       }));
+
+      // Refresh global stats after album deletion to keep totals in sync.
+      try {
+        const statsResponse = await axiosInstance.get("/stats");
+        set({ stats: statsResponse.data });
+      } catch (statsError: any) {
+        console.error("Error refreshing stats after album delete", statsError);
+      }
+
       toast.success("Album deleted successfully");
     } catch (error: any) {
       toast.error("Failed to delete album: " + error.message);

@@ -18,7 +18,7 @@ const formatDate = (dateString: string) => {
 
 const ChatPage = () => {
   const { user } = useUser();
-  const { messages, selectedUser, fetchUsers, fetchMessages } = useChatStore();
+  const { messages, selectedUser, fetchUsers, userActivities } = useChatStore();
 
   useEffect(() => {
     if (user) {
@@ -26,16 +26,10 @@ const ChatPage = () => {
     }
   }, [user, fetchUsers]);
 
-  useEffect(() => {
-    if (selectedUser) {
-      fetchMessages(selectedUser.clerkId);
-    }
-  }, [selectedUser, fetchMessages]);
-
   return (
     <main className="h-full rounded-lg bg-linear-to-b from-zinc-800 to-zinc-900 overflow-hidden">
       <Topbar />
-      <div className="grid lg:grid-cols-[300px_1fr] grid-cols-[80px_1fr] h-[calc(100vh-180px)]">
+      <div className="grid lg:grid-cols-[300px_1fr] grid-cols-[80px_1fr] h-[calc(100vh-250px)]">
         {/* Sidebar - User List */}
         <UsersList />
         {/* Chat Area */}
@@ -77,6 +71,29 @@ const ChatPage = () => {
                       </div>
                     </div>
                   ))}
+
+                  {/* Typing indicator for the other user */}
+                  {selectedUser &&
+                    userActivities
+                      .get(selectedUser.clerkId)
+                      ?.includes("typing...") &&
+                    user &&
+                    userActivities
+                      .get(selectedUser.clerkId)
+                      ?.includes(`to:${user.id}`) && (
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-8 md:size-12">
+                          <AvatarImage src={selectedUser.imageUrl} />
+                        </Avatar>
+                        <div className="rounded-lg p-3 max-w-[70%] bg-zinc-800">
+                          <div className="flex gap-1 items-end">
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:-0.2s]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce [animation-delay:-0.1s]" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                 </div>
               </ScrollArea>
 

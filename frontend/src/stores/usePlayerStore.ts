@@ -8,12 +8,17 @@ interface PlayerStore {
   queue: Song[];
   currentIndex: number;
 
+  isShuffle: boolean;
+  isRepeat: boolean;
+
   initializeQueue: (songs: Song[]) => void;
   playAlbum: (songs: Song[], startIndex?: number) => void;
   setCurrentSong: (song: Song | null) => void;
   togglePlay: () => void;
   playNext: () => void;
   playPrevious: () => void;
+  toggleShuffle: () => void;
+  toggleRepeat: () => void;
 }
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
@@ -21,6 +26,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   isPlaying: false,
   queue: [],
   currentIndex: -1,
+  isShuffle: false,
+  isRepeat: false,
 
   initializeQueue: (songs: Song[]) => {
     set({
@@ -90,11 +97,24 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 
   playNext: () => {
-    const { currentIndex, queue } = get();
-    const nextIndex = currentIndex + 1;
+    const { currentIndex, queue, isShuffle } = get();
+
+    if (!queue.length) return;
+
+    let nextIndex = currentIndex + 1;
+
+    if (isShuffle) {
+      if (queue.length === 1) {
+        nextIndex = currentIndex === -1 ? 0 : currentIndex;
+      } else {
+        do {
+          nextIndex = Math.floor(Math.random() * queue.length);
+        } while (nextIndex === currentIndex || nextIndex < 0);
+      }
+    }
 
     // if there is a next song to play, let's play it
-    if (nextIndex < queue.length) {
+    if (nextIndex < queue.length && nextIndex >= 0) {
       const nextSong = queue[nextIndex];
 
       const socket = useChatStore.getState().socket;
@@ -156,5 +176,13 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         });
       }
     }
+  },
+
+  toggleShuffle: () => {
+    set({ isShuffle: !get().isShuffle });
+  },
+
+  toggleRepeat: () => {
+    set({ isRepeat: !get().isRepeat });
   },
 }));

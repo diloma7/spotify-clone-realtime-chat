@@ -22,8 +22,17 @@ const formatTime = (seconds: number) => {
 };
 
 export const PlaybackControls = () => {
-  const { currentSong, isPlaying, togglePlay, playNext, playPrevious } =
-    usePlayerStore();
+  const {
+    currentSong,
+    isPlaying,
+    togglePlay,
+    playNext,
+    playPrevious,
+    isShuffle,
+    isRepeat,
+    toggleShuffle,
+    toggleRepeat,
+  } = usePlayerStore();
 
   const [volume, setVolume] = useState(75);
   const [currentTime, setCurrentTime] = useState(0);
@@ -42,16 +51,9 @@ export const PlaybackControls = () => {
     audio.addEventListener("timeupdate", updateTime);
     audio.addEventListener("loadedmetadata", updateDuration);
 
-    const handleEnded = () => {
-      usePlayerStore.setState({ isPlaying: false });
-    };
-
-    audio.addEventListener("ended", handleEnded);
-
     return () => {
       audio.removeEventListener("timeupdate", updateTime);
       audio.removeEventListener("loadedmetadata", updateDuration);
-      audio.removeEventListener("ended", handleEnded);
     };
   }, [currentSong]);
 
@@ -91,7 +93,21 @@ export const PlaybackControls = () => {
             <Button
               size="icon"
               variant="ghost"
-              className="hidden sm:inline-flex hover:text-white text-zinc-400"
+              className={`hidden sm:inline-flex hover:text-white text-zinc-400 ${
+                isShuffle ? "text-emerald-400" : ""
+              }`}
+              onClick={() => {
+                if (!currentSong) return;
+
+                if (!isShuffle) {
+                  toggleShuffle();
+                  if (isPlaying) {
+                    playNext();
+                  }
+                } else {
+                  toggleShuffle();
+                }
+              }}
             >
               <Shuffle className="h-4 w-4" />
             </Button>
@@ -130,7 +146,13 @@ export const PlaybackControls = () => {
             <Button
               size="icon"
               variant="ghost"
-              className="hidden sm:inline-flex hover:text-white text-zinc-400"
+              className={`hidden sm:inline-flex hover:text-white text-zinc-400 ${
+                isRepeat ? "text-emerald-400" : ""
+              }`}
+              onClick={() => {
+                if (!currentSong) return;
+                toggleRepeat();
+              }}
             >
               <Repeat className="h-4 w-4" />
             </Button>

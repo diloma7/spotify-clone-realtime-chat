@@ -1,9 +1,20 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useChatStore } from "@/stores/useChatStore";
+import { useUser } from "@clerk/clerk-react";
 
 const ChatHeaderBar = () => {
-  const { selectedUser, onlineUsers } = useChatStore();
+  const { selectedUser, onlineUsers, userActivities } = useChatStore();
+  const { user } = useUser();
   if (!selectedUser) return null;
+
+  const activity = userActivities.get(selectedUser.clerkId);
+  const isOnline = onlineUsers.has(selectedUser.clerkId);
+  const isTyping =
+    !!activity &&
+    activity.includes("typing...") &&
+    user &&
+    activity.includes(`to:${user.id}`);
+  const statusText = isTyping ? "Typing..." : isOnline ? "Online" : "Offline";
 
   return (
     <div className="p-4 border-r border-zinc-800">
@@ -14,9 +25,7 @@ const ChatHeaderBar = () => {
         </Avatar>
         <div>
           <h2 className="font-medium">{selectedUser.fullName}</h2>
-          <p className="text-sm text-zinc-400">
-            {onlineUsers.has(selectedUser.clerkId) ? "Online" : "Offline"}
-          </p>
+          <p className="text-sm text-zinc-400">{statusText}</p>
         </div>
       </div>
     </div>
