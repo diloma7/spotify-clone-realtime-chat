@@ -1,9 +1,11 @@
-import Song from "../models/song.model.js";
+import {
+  getAllSongsSorted,
+  getRandomFeaturedSongs,
+} from "../services/song.service.js";
 
 export const getAllSongs = async (req, res, next) => {
   try {
-    // Fetch all songs from the database
-    const songs = await Song.find().sort({ createdAt: -1 }); // Sort by creation date in descending order
+    const songs = await getAllSongsSorted();
 
     res.status(200).json({
       success: true,
@@ -18,19 +20,7 @@ export const getAllSongs = async (req, res, next) => {
 
 export const getFeaturedSongs = async (req, res, next) => {
   try {
-    // Fetch 6 random featured songs from the database using mongo aggregation pipeline
-    const songs = await Song.aggregate([
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          artist: 1,
-          audioUrl: 1,
-          imageUrl: 1,
-        },
-      },
-      { $sample: { size: 6 } }, // Randomly sample 6 songs
-    ]);
+    const songs = await getRandomFeaturedSongs(6);
 
     res.status(200).json({
       success: true,
@@ -45,19 +35,7 @@ export const getFeaturedSongs = async (req, res, next) => {
 
 export const getMadeForYouSongs = async (req, res, next) => {
   try {
-    // Fetch 4 random featured songs from the database using mongo aggregation pipeline
-    const songs = await Song.aggregate([
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          artist: 1,
-          audioUrl: 1,
-          imageUrl: 1,
-        },
-      },
-      { $sample: { size: 4 } }, // Randomly sample 4 songs
-    ]);
+    const songs = await getRandomFeaturedSongs(4);
     res.status(200).json({
       success: true,
       message: "Featured songs fetched successfully",
@@ -71,19 +49,7 @@ export const getMadeForYouSongs = async (req, res, next) => {
 
 export const getTrendingSongs = async (req, res, next) => {
   try {
-    // Fetch 4 random featured songs from the database using mongo aggregation pipeline
-    const songs = await Song.aggregate([
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          artist: 1,
-          audioUrl: 1,
-          imageUrl: 1,
-        },
-      },
-      { $sample: { size: 4 } }, // Randomly sample 4 songs
-    ]);
+    const songs = await getRandomFeaturedSongs(4);
 
     res.status(200).json({
       success: true,

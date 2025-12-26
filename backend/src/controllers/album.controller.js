@@ -1,8 +1,11 @@
-import Album from "../models/album.model.js";
+import {
+  getAllAlbumsSorted,
+  getAlbumWithSongsById,
+} from "../services/album.service.js";
 
 export const getAlbums = async (req, res, next) => {
   try {
-    const albums = await Album.find().sort({ createdAt: -1 }); // Fetch all albums sorted by creation date in descending order
+    const albums = await getAllAlbumsSorted();
 
     res.status(200).json({
       success: true,
@@ -18,8 +21,7 @@ export const getAlbums = async (req, res, next) => {
 export const getAlbumById = async (req, res, next) => {
   try {
     const { albumId } = req.params;
-
-    const album = await Album.findById(albumId).populate("songs"); // Fetch album by ID and populate the songs field
+    const album = await getAlbumWithSongsById(albumId);
 
     if (!album) {
       return res.status(404).json({

@@ -1,11 +1,12 @@
-import User from "../models/user.model.js";
-import Message from "../models/message.model.js";
+import {
+  getAllUsersExcludingCurrent,
+  getMessagesBetweenUsers,
+} from "../services/user.service.js";
 
 export const getAllUsers = async (req, res, next) => {
   try {
-    // Fetch all users from the database except from the current user useing the clerk user id
-    const currentUserId = req.auth.userId; // Assuming you have the user ID in req.auth
-    const users = await User.find({ clerkId: { $ne: currentUserId } }); // Exclude the current user
+    const currentUserId = req.auth.userId;
+    const users = await getAllUsersExcludingCurrent(currentUserId);
     res.status(200).json({
       success: true,
       message: "Users fetched successfully",
@@ -20,13 +21,8 @@ export const getAllUsers = async (req, res, next) => {
 export const getMessagesByUserId = async (req, res, next) => {
   try {
     const { userId } = req.params;
-    const myID = req.auth.userId; // Assuming you have the user ID in req.auth
-    const messages = await Message.find({
-      $or: [
-        { senderId: userId, receiverId: myID },
-        { senderId: myID, receiverId: userId },
-      ],
-    }).sort({ createdAt: 1 }); // Sort messages by creation time in ascending order
+    const myID = req.auth.userId;
+    const messages = await getMessagesBetweenUsers({ userId, myId: myID });
 
     res.status(200).json({
       success: true,

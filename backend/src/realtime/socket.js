@@ -1,17 +1,20 @@
 import { Server } from "socket.io";
 import Message from "../models/message.model.js";
+import { env } from "../config/env.js";
+
 export function initializeSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:5173",
-      //   methods: ["GET", "POST"],
+      origin: env.clientUrl,
       credentials: true,
     },
   });
+
   const userSockets = new Map();
   const userActivity = new Map();
 
   io.on("connection", (socket) => {
+    // eslint-disable-next-line no-console
     console.log("A user just connected:", socket.id);
 
     socket.on("user_connected", (userId) => {
@@ -26,6 +29,7 @@ export function initializeSocket(httpServer) {
     });
 
     socket.on("update_activity", ({ userId, activity }) => {
+      // eslint-disable-next-line no-console
       console.log("activity updated", userId, activity);
       userActivity.set(userId, activity);
       io.emit("activity_updated", { userId, activity });
@@ -40,23 +44,23 @@ export function initializeSocket(httpServer) {
           content,
         });
 
-        // send to receiver if online
         const receiverSocketId = userSockets.get(receiverId);
         if (receiverSocketId) {
           io.to(receiverSocketId).emit("receive_message", message);
         }
 
-        // Optionally, send an acknowledgment back to the sender
         socket.emit("message_sent", message);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error("Error saving message:", error);
       }
     });
 
     socket.on("disconnect", () => {
+      // eslint-disable-next-line no-console
       console.log("A user disconnected:", socket.id);
       let disconnectedUserId;
-      for (let [userId, socketId] of userSockets.entries()) {
+      for (const [userId, socketId] of userSockets.entries()) {
         if (socketId === socket.id) {
           disconnectedUserId = userId;
           userSockets.delete(userId);

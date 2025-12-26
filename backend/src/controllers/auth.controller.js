@@ -1,22 +1,25 @@
-import User from "../models/user.model.js";
+import { handleAuthCallback } from "../services/auth.service.js";
 
 export const authCallback = async (req, res, next) => {
   debugger;
   try {
     const { id, firstName, lastName, imageUrl } = req.body;
+    const result = await handleAuthCallback({
+      id,
+      firstName,
+      lastName,
+      imageUrl,
+    });
 
-    const user = await User.findOne({ clerkId: id });
-    if (!user) {
-      // If user does not exist, create a new user
-      await User.create({
-        fullName: `${firstName || ""} ${lastName || ""}`.trim(),
-        imageUrl,
-        clerkId: id,
-      });
+    if (result.created) {
       return res
         .status(200)
         .json({ success: true, message: "User created successfully" });
     }
+
+    return res
+      .status(200)
+      .json({ success: true, message: "User already exists" });
   } catch (error) {
     console.error("Error in auth route:", error);
     next(error);
