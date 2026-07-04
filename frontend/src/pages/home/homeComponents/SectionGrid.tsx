@@ -1,7 +1,6 @@
 import type { Song } from "@/types";
 import SectionGridSkeleton from "./SectionGridSkeleton";
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
 import PlayButton from "./PlayButton";
 
 type SectionGridProps = {

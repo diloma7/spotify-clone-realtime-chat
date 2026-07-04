@@ -4,13 +4,14 @@ import {
   createAlbumWithImage,
   deleteAlbumById,
 } from "../services/admin.service.js";
-import { clerkClient } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
+import { env } from "../config/env.js";
 
 export const checkAdmin = async (req, res, next) => {
   try {
-    const user = await clerkClient.users.getUser(req.auth.userId);
+    const user = await clerkClient.users.getUser(getAuth(req).userId);
     const isAdmin =
-      process.env.ADMIN_USER_ID === user.primaryEmailAddress?.emailAddress;
+      env.adminUserId === user.primaryEmailAddress?.emailAddress;
 
     res.status(200).json({ admin: !!isAdmin });
   } catch (error) {

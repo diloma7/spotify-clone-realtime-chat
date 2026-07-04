@@ -13,7 +13,7 @@ const MessageInputArea = () => {
 
   const handleSend = () => {
     if (!selectedUser || !user || !newMessage) return;
-    sendMessage(selectedUser.clerkId, user.id, newMessage.trim());
+    sendMessage(selectedUser.clerkId, newMessage.trim());
     setNewMessage("");
 
     // Reset typing state to Idle after sending a message
@@ -21,8 +21,8 @@ const MessageInputArea = () => {
   };
 
   return (
-    <div className="mt-auto border-t border-zinc-800">
-      <div className="flex gap-3">
+    <div className="shrink-0 border-t border-zinc-800/70 bg-zinc-950/95 p-3 md:p-4">
+      <div className="flex items-center gap-3">
         <Input
           placeholder="Type a message..."
           value={newMessage}
@@ -47,13 +47,14 @@ const MessageInputArea = () => {
               updateActivity(user.id, "Idle", selectedUser?.clerkId);
             }
           }}
-          className="bg-zinc-800 border-none"
+          className="h-11 rounded-full border-zinc-700 bg-zinc-900 px-4 text-sm text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-emerald-500/40"
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
         <Button
           size={"icon"}
           disabled={!newMessage.trim()}
           onClick={handleSend}
+          className="size-11 shrink-0 rounded-full bg-emerald-500 text-black hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500"
         >
           <Send className="size-4" />
         </Button>

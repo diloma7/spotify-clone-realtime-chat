@@ -10,6 +10,6 @@ export const connectDB = async () => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error("Error connecting to MongoDB:", error);
-    process.exit(1);
+    throw error;
   }
 };

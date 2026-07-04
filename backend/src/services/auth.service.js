@@ -1,22 +1,32 @@
 import User from "../models/user.model.js";
 
-export const handleAuthCallback = async ({
-  id,
-  firstName,
-  lastName,
-  imageUrl,
-}) => {
-  const existingUser = await User.findOne({ clerkId: id });
+export const handleAuthCallback = async ({ clerkId, fullName, imageUrl }) => {
+  const existingUser = await User.findOne({ clerkId });
 
   if (!existingUser) {
     await User.create({
-      fullName: `${firstName || ""} ${lastName || ""}`.trim(),
+      fullName,
       imageUrl,
-      clerkId: id,
+      clerkId,
     });
 
     return { created: true };
   }
 
-  return { created: false };
+  const updates = {};
+
+  if (fullName && existingUser.fullName !== fullName) {
+    updates.fullName = fullName;
+  }
+
+  if (imageUrl && existingUser.imageUrl !== imageUrl) {
+    updates.imageUrl = imageUrl;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await User.updateOne({ _id: existingUser._id }, { $set: updates });
+    return { created: false, updated: true };
+  }
+
+  return { created: false, updated: false };
 };

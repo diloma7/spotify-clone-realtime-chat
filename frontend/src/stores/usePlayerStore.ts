@@ -45,7 +45,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     const socket = useChatStore.getState().socket;
     if (socket.auth) {
       socket.emit("update_activity", {
-        userId: socket.auth.userId,
         activity: `Playing ${song.title} by ${song.artist}`,
       });
     }
@@ -63,7 +62,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     const socket = useChatStore.getState().socket;
     if (socket.auth) {
       socket.emit("update_activity", {
-        userId: socket.auth.userId,
         activity: `Playing ${song.title} by ${song.artist}`,
       });
     }
@@ -83,7 +81,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     const socket = useChatStore.getState().socket;
     if (socket.auth) {
       socket.emit("update_activity", {
-        userId: socket.auth.userId,
         activity:
           willStartPlaying && currentSong
             ? `Playing ${currentSong.title} by ${currentSong.artist}`
@@ -120,7 +117,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       const socket = useChatStore.getState().socket;
       if (socket.auth) {
         socket.emit("update_activity", {
-          userId: socket.auth.userId,
           activity: `Playing ${nextSong.title} by ${nextSong.artist}`,
         });
       }
@@ -137,7 +133,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       const socket = useChatStore.getState().socket;
       if (socket.auth) {
         socket.emit("update_activity", {
-          userId: socket.auth.userId,
           activity: `Idle`,
         });
       }
@@ -154,7 +149,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       const socket = useChatStore.getState().socket;
       if (socket.auth) {
         socket.emit("update_activity", {
-          userId: socket.auth.userId,
           activity: `Playing ${prevSong.title} by ${prevSong.artist}`,
         });
       }
@@ -171,7 +165,6 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       const socket = useChatStore.getState().socket;
       if (socket.auth) {
         socket.emit("update_activity", {
-          userId: socket.auth.userId,
           activity: `Idle`,
         });
       }

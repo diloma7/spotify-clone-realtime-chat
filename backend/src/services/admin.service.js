@@ -3,11 +3,14 @@ import Album from "../models/album.model.js";
 import Song from "../models/song.model.js";
 import { deleteCache } from "./cache.service.js";
 
-const invalidateMusicCaches = async () => {
+const invalidateMusicCaches = async (extraKeys = []) => {
   await Promise.all([
     deleteCache("songs:all"),
+    deleteCache("songs:featured:4"),
+    deleteCache("songs:featured:6"),
     deleteCache("albums:all"),
     deleteCache("stats:global"),
+    ...extraKeys.map((key) => deleteCache(key)),
   ]);
 };
 
@@ -36,7 +39,7 @@ export const createSongWithFiles = async ({
     audioUrl,
     imageUrl,
     duration,
-    album: albumId || null,
+    albumId: albumId || null,
   });
 
   await song.save();
@@ -47,7 +50,7 @@ export const createSongWithFiles = async ({
     });
   }
 
-  await invalidateMusicCaches();
+  await invalidateMusicCaches(albumId ? [`albums:${albumId}`] : []);
 
   return song;
 };
@@ -67,7 +70,7 @@ export const deleteSongById = async (id) => {
 
   await Song.findByIdAndDelete(id);
 
-  await invalidateMusicCaches();
+  await invalidateMusicCaches(song.albumId ? [`albums:${song.albumId}`] : []);
 
   return song;
 };
@@ -104,7 +107,7 @@ export const deleteAlbumById = async (id) => {
   await Song.deleteMany({ albumId: id });
   await Album.findByIdAndDelete(id);
 
-  await invalidateMusicCaches();
+  await invalidateMusicCaches([`albums:${id}`]);
 
   return album;
 };

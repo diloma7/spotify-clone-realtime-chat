@@ -1,4 +1,5 @@
 import { RateLimiterRedis } from "rate-limiter-flexible";
+import { getAuth } from "@clerk/express";
 import { redisClient } from "../../config/redis.js";
 import { getCache } from "../../services/cache.service.js";
 
@@ -26,7 +27,7 @@ export const globalRateLimitMiddleware = async (req, res, next) => {
     // Skip rate limiting for authenticated users; this keeps the
     // app responsive for logged-in admins and normal users while
     // still protecting public/anonymous traffic.
-    if (req.auth && req.auth.userId) {
+    if (getAuth(req).userId) {
       return next();
     }
 

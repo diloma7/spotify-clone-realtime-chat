@@ -31,6 +31,7 @@ export interface Message {
 	senderId: string;
 	receiverId: string;
 	content: string;
+	readAt?: string | null;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -40,4 +41,5 @@ export interface User {
 	clerkId: string;
 	fullName: string;
 	imageUrl: string;
+	unreadCount?: number;
 }

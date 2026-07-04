@@ -14,7 +14,7 @@ const updateApiToken = (token: string | null) => {
 };
 
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { getToken, userId } = useAuth();
+  const { getToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const { checkAdminStatus } = useAuthStore();
   const { initSocket, disconnectSocket } = useChatStore();
@@ -41,7 +41,6 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               return axiosInstance(originalRequest);
             }
           } catch (tokenError) {
-            // eslint-disable-next-line no-console
             console.error("Error refreshing token after 401:", tokenError);
           }
         }
@@ -57,9 +56,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (token) {
           await checkAdminStatus();
           //init socket or other auth-dependent services here
-          if (userId) {
-            initSocket(userId);
-          }
+          initSocket(getToken);
         }
       } catch (error: any) {
         updateApiToken(null);
@@ -74,7 +71,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       axiosInstance.interceptors.response.eject(interceptorId);
       disconnectSocket();
     };
-  }, [getToken, userId, checkAdminStatus, initSocket, disconnectSocket]);
+  }, [getToken, checkAdminStatus, initSocket, disconnectSocket]);
 
   if (loading) {
     return (

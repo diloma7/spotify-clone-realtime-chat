@@ -1,7 +1,8 @@
-import { clerkClient } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
+import { env } from "../config/env.js";
 
 export const protectRoute = (req, res, next) => {
-  if (!req.auth.userId) {
+  if (!getAuth(req).userId) {
     return res
       .status(401)
       .json({ success: false, message: "Unauthorized Access" });
@@ -13,15 +14,23 @@ export const protectRoute = (req, res, next) => {
 
 export const requireAdmin = async (req, res, next) => {
   try {
-    const user = await clerkClient.users.getUser(req.auth.userId);
-    const isAdmin =
-      process.env.ADMIN_USER_ID === user.primaryEmailAddress?.emailAddress;
+    const userId = getAuth(req).userId;
 
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized Access" });
+    }
+
+    const user = await clerkClient.users.getUser(userId);
     if (!user) {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
     }
+
+    const isAdmin =
+      env.adminUserId === user.primaryEmailAddress?.emailAddress;
 
     // Check if the user has the 'admin' role
     if (!isAdmin) {

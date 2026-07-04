@@ -10,6 +10,15 @@ import { registerRoutes } from "../api/routes/index.js";
 import { globalRateLimitMiddleware } from "../api/middleware/rate-limit.middleware.js";
 
 const __dirname = path.resolve();
+const uploadTempDir = path.join(__dirname, "temp");
+
+const corsOrigin = (origin, callback) => {
+  if (!origin || env.clientUrls.includes(origin)) {
+    return callback(null, true);
+  }
+
+  return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+};
 
 export const createApp = () => {
   const app = express();
@@ -19,14 +28,14 @@ export const createApp = () => {
 
   app.use(
     cors({
-      origin: env.clientUrl,
+      origin: corsOrigin,
       credentials: true,
     })
   );
 
   app.use(express.json());
 
-  // Clerk middleware must run before rate limiting so that req.auth is set
+  // Clerk middleware must run before rate limiting so that getAuth(req) is available
   // and we can optionally bypass rate limiting for authenticated users.
   app.use(clerkMiddleware());
 
@@ -35,7 +44,7 @@ export const createApp = () => {
   app.use(
     fileUpload({
       useTempFiles: true,
-      tempFileDir: path.join(__dirname, "temp"),
+      tempFileDir: uploadTempDir,
       createParentPath: true,
       limits: { fileSize: 50 * 1024 * 1024 },
       abortOnLimit: true,
@@ -47,17 +56,16 @@ export const createApp = () => {
     res.status(200).json({ status: "ok" });
   });
 
-  const tempDir = path.join(process.cwd(), "tmp");
   cron.schedule("0 * * * *", () => {
-    if (fs.existsSync(tempDir)) {
-      fs.readdir(tempDir, (err, files) => {
+    if (fs.existsSync(uploadTempDir)) {
+      fs.readdir(uploadTempDir, (err, files) => {
         if (err) {
           // eslint-disable-next-line no-console
           console.log("error", err);
           return;
         }
         for (const file of files) {
-          fs.unlink(path.join(tempDir, file), () => {});
+          fs.unlink(path.join(uploadTempDir, file), () => {});
         }
       });
     }

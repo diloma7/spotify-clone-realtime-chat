@@ -34,6 +34,7 @@ const MainLayout = () => {
           defaultSize={20}
           minSize={isMobile ? 0 : 10}
           maxSize={30}
+          className="min-h-0"
         >
           <LeftSideBar />
         </ResizablePanel>
@@ -41,7 +42,7 @@ const MainLayout = () => {
         <ResizableHandle className="w-2 bg-black rounded-lg transition-colors" />
 
         {/* Main content */}
-        <ResizablePanel defaultSize={isMobile ? 80 : 60}>
+        <ResizablePanel defaultSize={isMobile ? 80 : 60} className="min-h-0">
           <Outlet />
         </ResizablePanel>
 
@@ -55,6 +56,7 @@ const MainLayout = () => {
               minSize={0}
               maxSize={25}
               collapsedSize={0}
+              className="min-h-0"
             >
               <FriendsActivity />
             </ResizablePanel>

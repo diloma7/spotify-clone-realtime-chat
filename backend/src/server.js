@@ -11,8 +11,17 @@ initializeSocket(httpServer);
 
 const PORT = env.port;
 
-httpServer.listen(PORT, () => {
-  connectDB();
+const startServer = async () => {
+  await connectDB();
+
+  httpServer.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`Server is running on http://localhost:${PORT}`);
+  });
+};
+
+startServer().catch((error) => {
   // eslint-disable-next-line no-console
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.error("Failed to start server:", error);
+  process.exit(1);
 });

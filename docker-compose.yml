@@ -1,20 +1,26 @@
-version: "3.9"
-
 services:
   redis:
     image: redis:7-alpine
     container_name: spotify_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile.dev
     env_file:
       - ./backend/.env
     environment:
       - NODE_ENV=development
-      - REDIS_URL=redis://spotify_redis:6379
+      - PORT=5006
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   nginx:
     image: nginx:alpine
@@ -29,6 +35,7 @@ services:
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile.dev
     env_file:
       - ./frontend/.env.local
     environment:

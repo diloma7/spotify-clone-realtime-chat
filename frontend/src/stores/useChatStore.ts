@@ -1,4 +1,4 @@
-import { axiosInstance } from "@/lib/axios";
+import { apiOrigin, axiosInstance } from "@/lib/axios";
 import { create } from "zustand";
 import { io } from "socket.io-client";
 import type { Message, User } from "@/types";
@@ -12,14 +12,16 @@ interface ChatStore {
   onlineUsers: Set<string>;
   userActivities: Map<string, string>;
   lastPlayingActivity: Map<string, string>;
+  unreadMessages: Map<string, number>;
   messages: Message[];
   selectedUser: User | null;
 
   fetchUsers: () => Promise<void>;
-  initSocket: (userId: string) => void;
+  initSocket: (getToken: () => Promise<string | null>) => void;
   disconnectSocket: () => void;
-  sendMessage: (receiverId: string, senderId: string, content: string) => void;
+  sendMessage: (receiverId: string, content: string) => void;
   fetchMessages: (userId: string) => Promise<void>;
+  markMessagesRead: (userId: string) => Promise<void>;
   setSelectedUser: (user: User | null) => void;
   selectUser: (user: User) => Promise<void>;
   updateActivity: (
@@ -29,16 +31,7 @@ interface ChatStore {
   ) => void;
 }
 
-const baseURL = (() => {
-  const configuredBase = (import.meta.env.VITE_API_URL as string | undefined)
-    ?.trim()
-    .replace(/\/$/, "");
-
-  // Default to the nginx entrypoint when running locally.
-  return configuredBase || "http://localhost:8080";
-})();
-
-const socket = io(baseURL, {
+const socket = io(apiOrigin || undefined, {
   autoConnect: false, // only connect if user is authenticated
   withCredentials: true,
 });
@@ -52,13 +45,34 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   onlineUsers: new Set(),
   userActivities: new Map(),
   lastPlayingActivity: new Map(),
+  unreadMessages: new Map(),
   messages: [],
   selectedUser: null,
 
   setSelectedUser: (user) => set({ selectedUser: user }),
   selectUser: async (user) => {
-    set({ selectedUser: user, messages: [] });
+    set((state) => {
+      const unreadMessages = new Map(state.unreadMessages);
+      unreadMessages.delete(user.clerkId);
+
+      return { selectedUser: user, messages: [], unreadMessages };
+    });
     await get().fetchMessages(user.clerkId);
+  },
+
+  markMessagesRead: async (userId) => {
+    set((state) => {
+      const unreadMessages = new Map(state.unreadMessages);
+      unreadMessages.delete(userId);
+
+      return { unreadMessages };
+    });
+
+    try {
+      await axiosInstance.patch(`/users/messages/${userId}/read`);
+    } catch (error: any) {
+      set({ error: error.message });
+    }
   },
 
   updateActivity: (userId: string, activity: string, targetUserId?: string) => {
@@ -112,7 +126,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       finalActivity = finalActivity.replace(/ \| to:[^|]+/g, "");
     }
 
-    socket.emit("update_activity", { userId, activity: finalActivity });
+    socket.emit("update_activity", { activity: finalActivity });
 
     set((state) => {
       const newActivities = new Map(state.userActivities);
@@ -135,7 +149,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const usersData = Array.isArray(response.data)
         ? response.data
         : response.data.users || [];
-      set({ users: usersData });
+      const unreadMessages = new Map<string, number>();
+
+      usersData.forEach((user: User) => {
+        if (user.unreadCount && user.unreadCount > 0) {
+          unreadMessages.set(user.clerkId, user.unreadCount);
+        }
+      });
+
+      set({ users: usersData, unreadMessages });
     } catch (error: any) {
       set({ error: error.message });
     } finally {
@@ -143,17 +165,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  initSocket: (userId) => {
+  initSocket: (getToken) => {
     if (!get().isConnected) {
-      socket.auth = { userId };
+      socket.removeAllListeners();
+      socket.auth = async (callback: (auth: { token?: string }) => void) => {
+        try {
+          const token = await getToken();
+          callback(token ? { token } : {});
+        } catch {
+          callback({});
+        }
+      };
       socket.connect();
 
-      // Ensure presence is registered on every (re)connect, not just
-      // the initial connection. Socket.IO fires `connect` again after
-      // automatic reconnects, so this keeps the online user list
-      // accurate without requiring a full page refresh.
       socket.on("connect", () => {
-        socket.emit("user_connected", userId);
+        void get().fetchUsers();
       });
 
       socket.on("users_online", (users: string[]) => {
@@ -191,15 +217,47 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       });
 
       socket.on("receive_message", (message: Message) => {
-        set((state) => ({
-          messages: [...state.messages, message],
-        }));
+        const isActiveConversation =
+          get().selectedUser?.clerkId === message.senderId;
+
+        if (isActiveConversation) {
+          void get().markMessagesRead(message.senderId);
+        }
+
+        set((state) => {
+          const isSelectedConversation =
+            state.selectedUser?.clerkId === message.senderId;
+
+          if (isSelectedConversation) {
+            const unreadMessages = new Map(state.unreadMessages);
+            unreadMessages.delete(message.senderId);
+
+            return {
+              messages: [...state.messages, message],
+              unreadMessages,
+            };
+          }
+
+          const unreadMessages = new Map(state.unreadMessages);
+          unreadMessages.set(
+            message.senderId,
+            (unreadMessages.get(message.senderId) || 0) + 1
+          );
+
+          return { unreadMessages };
+        });
       });
 
       socket.on("message_sent", (message: Message) => {
-        set((state) => ({
-          messages: [...state.messages, message],
-        }));
+        set((state) => {
+          if (state.selectedUser?.clerkId !== message.receiverId) {
+            return state;
+          }
+
+          return {
+            messages: [...state.messages, message],
+          };
+        });
       });
 
       socket.on(
@@ -225,17 +283,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   disconnectSocket: () => {
-    if (get().isConnected) {
-      socket.disconnect();
-      set({ isConnected: false });
-    }
+    socket.disconnect();
+    socket.removeAllListeners();
+    set({ isConnected: false });
   },
 
-  sendMessage: async (receiverId, senderId, content) => {
+  sendMessage: async (receiverId, content) => {
     const socket = get().socket;
     if (!socket) return;
 
-    socket.emit("send_message", { receiverId, senderId, content });
+    socket.emit("send_message", { receiverId, content });
   },
 
   fetchMessages: async (userId: string) => {
